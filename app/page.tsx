@@ -6,6 +6,7 @@ import { Clock, CalendarPlus } from "lucide-react";
 import { Dialog, DialogPanel, DialogTitle } from "@headlessui/react";
 import { createEvents } from "ics";
 import { matches as rawMatches } from "./utils/data";
+import { DateTime } from "luxon";
 
 
 type Match = {
@@ -107,22 +108,25 @@ export default function PhoenixSchedulePage() {
     setLoading(false);
   }, []);
 
- const generateICS = () => {
-  const events = matches.map((match) => ({
-    start: [
-      match.date.getFullYear(),
-      match.date.getMonth() + 1,
-      match.date.getDate(),
-      match.date.getHours(),
-      match.date.getMinutes(),
-    ] as [number, number, number, number, number],
-    duration: { hours: 2 },
-    title: `Match vs ${match.opponent}`,
-    description: `Match contre ${match.opponent}`,
-    location: 'US GAME',
-    url: match.link || "https://goconqs.com/sports/2018/8/17/live-video.aspx"
+const generateICS = () => {
+  const events = matches.map((match) => {
+    const dt = DateTime.fromJSDate(match.date).setZone("Europe/Paris");
 
-  }));
+    return {
+      start: [
+        dt.year,
+        dt.month,
+        dt.day,
+        dt.hour,
+        dt.minute,
+      ] as [number, number, number, number, number],
+      duration: { hours: 2 },
+      title: `Match vs ${match.opponent}`,
+      description: `Match contre ${match.opponent}`,
+      location: 'US GAME',
+      url: match.link || "https://goconqs.com/sports/2018/8/17/live-video.aspx"
+    };
+  });
 
   console.log("Events to create:", events);
 
@@ -135,7 +139,7 @@ export default function PhoenixSchedulePage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'lena_2526.ics';
+    a.download = 'jade_2526.ics';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
