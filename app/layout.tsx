@@ -13,11 +13,11 @@ export const metadata = {
   openGraph: {
     title: "Calendrier de Jade la Béarnaise",
     description: "Le calendrier des matchs de Jade.",
-    url: "https://mj-musa-schedule.vercel.app/",
+    url: "https://jade-calendrier.vercel.app/",
     siteName: "Jade la Béarnaise Schedule",
     images: [
       {
-        url: "https://mj-musa-schedule.vercel.app/preview.jpg",
+        url: "https://jade-calendrier.vercel.app/preview.jpg",
         width: 1200,
         height: 630,
         alt: "Jade la Béarnaise Schedule",
@@ -29,7 +29,7 @@ export const metadata = {
     card: "summary_large_image",
     title: "Calendrier de Jade la Béarnaise",
     description: "Le calendrier des matchs de Jade.",
-    images: ["https://mj-musa-schedule.vercel.app/preview.jpg"],
+    images: ["https://jade-calendrier.vercel.app/preview.jpg"],
   },
 };
 

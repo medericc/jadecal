@@ -5,12 +5,15 @@ import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card"
 import { Clock, CalendarPlus } from "lucide-react";
 import { Dialog, DialogPanel, DialogTitle } from "@headlessui/react";
 import { createEvents } from "ics";
+import { matches as rawMatches } from "./utils/data";
+
 
 type Match = {
   id: string;
   date: Date;
   opponent: string;
   opponentLogo: string;
+  hasValidTime?: boolean; // 👈 Ajout pour savoir si l’heure est valable
   link: string; // 👈 Ajout ici
 };
 const translations = {
@@ -25,133 +28,122 @@ const translations = {
       "1. Ouvrez Google Calendar",
       "2. Cliquez sur la roue crantée en haut à droite → Paramètres",
       "3. Allez dans Importer et exporter",
-      "4. Sélectionnez le fichier téléchargé : liberty_matchs.ics",
+      "4. Sélectionnez le fichier téléchargé : jade_2526.ics",
       "5. Importez-le dans le calendrier de votre choix",
-      "🎉 Tous les matchs de MJ sont maintenant dans votre agenda !",
+      "🎉 Tous les matchs de Jade sont maintenant dans votre agenda !",
     ],
     iosInstructions: [
       "✅ Le fichier a été téléchargé !",
       "Si pas déjà importer :",
       "1. Ouvrez l'application Fichiers",
       "2. Rendez-vous dans le dossier Téléchargements",
-      "3. Appuyez sur le fichier liberty_matchs.ics",
+      "3. Appuyez sur le fichier jade_2526.ics",
       "4. Choisissez Ajouter à Calendrier si proposé",
-      "📅 Tous les matchs sont maintenant ajoutés à votre calendrier !",
+      "📅 Tous les matchs de Jade sont maintenant ajoutés à votre calendrier !",
     ],
     close: "Fermer",
-  },
-  en: {
-    addCalendarTitle: "Add all matches to your calendar?",
-    appleOutlook: "📅 Apple / Outlook (.ics)",
-    googleCalendar: "📆 Google Calendar",
-    cancel: "Cancel",
-    googleInstructions: [
-      "✅ The file has been downloaded!",
-      "Here's how to import it into Google Calendar:",
-      "1. Open Google Calendar",
-      "2. Click the gear icon at the top right → Settings",
-      "3. Go to Import and Export",
-      "4. Select the downloaded file: liberty_matchs.ics",
-      "5. Import it into the calendar of your choice",
-      "🎉 All MJ matches are now in your agenda!",
-    ],
-    iosInstructions: [
-      "✅ The file has been downloaded!",
-      "If not already imported:",
-      "1. Open the Files app",
-      "2. Go to the Downloads folder",
-      "3. Tap on the liberty_matchs.ics file",
-      "4. Choose Add to Calendar if prompted",
-      "📅 All matches are now added to your calendar!",
-    ],
-    close: "Close",
-  },
+  }
 };
-function formatOpponentName(name: string): string {
-  const mapping: { [key: string]: string } = {
-    "Los Angeles Sparks": "L.A. Sparks",
-    "Washington Mystics": "Washington",
-    "New York Liberty": "NY Liberty",
-    "Phoenix Mercury": "Phoenix",
-    "Golden State Valkyries": "Golden State",
+
+
+const parsed = rawMatches.map((match, index) => {
+  const [month, day, year] = match.dayLabel.split('/');
+
+  const hourString = match.hourLabel || match["match.link"];
+  let hour = NaN;
+  let minute = NaN;
+
+  if (hourString && /[:hH]/.test(hourString)) {
+    [hour, minute] = hourString.split(/[:hH]/).map(Number);
+  }
+
+  const date = new Date(
+    Number(year),
+    Number(month) - 1,
+    Number(day),
+    isNaN(hour) ? 0 : hour,
+    isNaN(minute) ? 0 : minute
+  );
+
+  return {
+    id: `${index}-${match["match.opponent"]}`,
+    date,
+    opponent: match["match.opponent"],
+    opponentLogo: `${match["match.opponentLogo"]}`,
+    link: match["match.link"]?.startsWith('http')
+  ? match["match.link"]
+  : match["match.link"]?.trim()
+    ? `https://${match["match.link"]}`
+    : null,
+    hasValidTime: !isNaN(hour) && !isNaN(minute), // 👈 Ajout pour savoir si l’heure est valable
   };
-  return mapping[name] || name;
-}
+});
+
+
 
 export default function PhoenixSchedulePage() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
-  const [language, setLanguage] = useState<"fr" | "en">("en");
+
   const [showLocalTimes, setShowLocalTimes] = useState<{ [key: string]: boolean }>({});
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showGoogleInstructions, setShowGoogleInstructions] = useState(false);
- const [showiOSInstructions, setShowiOSInstructions] = useState(false); 
-  
+  const [showiOSInstructions, setShowiOSInstructions] = useState(false); 
 
   useEffect(() => {
-    const getMatches = async () => {
-      const res = await fetch(
-        `/api/proxy?url=${encodeURIComponent(
-          'https://site.api.espn.com/apis/site/v2/sports/basketball/wnba/teams/phx/schedule'
-        )}`
-      );
+    const now = new Date();
+    const nowMinus5h = new Date(now.getTime() - 5 * 60 * 60 * 1000);
 
-      const data = await res.json();
+    const filtered = parsed
+  .filter(match => match.date > nowMinus5h)
+  .map(match => ({
+    ...match,
+    opponent: (match.opponent),
+    link: match.link?.startsWith('http') ? match.link : `https://${match.link || 'youtube.com'}`,
+  }));
 
-      const now = new Date();
-      const nowMinus5h = new Date(now.getTime() - 5 * 60 * 60 * 1000);
 
-      const parsed = data.events
-      .filter((event: any) => new Date(event.date) > nowMinus5h)
-      .map((event: any) => {
-        const date = new Date(event.date);
-        const [home, away] = event.competitions[0].competitors;
-        const isGSVHome = home.team.displayName === 'Phoenix Mercury';
-        const opponentTeam = isGSVHome ? away.team : home.team;
-    
-        return {
-          id: event.id,
-          date,
-          opponent: formatOpponentName(opponentTeam.displayName),
-          opponentLogo: opponentTeam.logos?.[0]?.href ?? '',
-          link: event.links?.[0]?.href ?? '#',
-        };
-      });
-
-    setMatches(parsed);
+    setMatches(filtered);
     setLoading(false);
-  };
-
-    getMatches();
   }, []);
 
-  const generateICS = () => {
-    const events = matches.map((match) => ({
-      start: [
-        match.date.getFullYear(),
-        match.date.getMonth() + 1,
-        match.date.getDate(),
-        match.date.getHours(),
-        match.date.getMinutes(),
-      ] as [number, number, number, number, number],
-      duration: { hours: 2 },
-      title: `Phoenix Mercury vs ${match.opponent}`,
-      description: `Match contre ${match.opponent}`,
-      location: 'Match WNBA',
-      url: match.link,
-    }));
+ const generateICS = () => {
+  const events = matches.map((match) => ({
+    start: [
+      match.date.getFullYear(),
+      match.date.getMonth() + 1,
+      match.date.getDate(),
+      match.date.getHours(),
+      match.date.getMinutes(),
+    ] as [number, number, number, number, number],
+    duration: { hours: 2 },
+    title: `Match vs ${match.opponent}`,
+    description: `Match contre ${match.opponent}`,
+    location: 'US GAME',
+    url: match.link || "https://goconqs.com/sports/2018/8/17/live-video.aspx"
 
-    const { error, value } = createEvents(events as any);
+  }));
 
-    if (!error && value) {
-      const blob = new Blob([value], { type: 'text/calendar;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'phoenix_matchs.ics';
-      a.click();
-    }
-  };
+  console.log("Events to create:", events);
+
+  const { error, value } = createEvents(events as any);
+
+  console.log("createEvents result:", { error, value });
+
+  if (!error && value) {
+    const blob = new Blob([value], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'lena_2526.ics';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  } else {
+    console.error("Erreur ICS:", error);
+  }
+};
+
   const handleAppleOutlookImport = () => {
     generateICS(); // Télécharge le fichier .ics
     setShowiOSInstructions(true); // Affiche les instructions iOS
@@ -196,7 +188,7 @@ export default function PhoenixSchedulePage() {
       </div>
     );
   }
-  const t = translations[language];
+  const t = translations.fr;
   const handleGoogleCalendarImport = () => {
     generateICS();
     setShowGoogleInstructions(true);
@@ -205,38 +197,40 @@ export default function PhoenixSchedulePage() {
   return (
     <div className="max-w-2xl mx-auto p-6">
   <ul className="space-y-4">
-    {matches.map((match) => {
-    const isLocal = showLocalTimes[match.id];
+     {matches.map((match) => {
+      const isLocal = showLocalTimes[match.id];
 
-    const timeZone = isLocal
-      ? Intl.DateTimeFormat().resolvedOptions().timeZone
-      : 'Europe/Paris';
-    
-    const locale = isLocal
-      ? Intl.DateTimeFormat().resolvedOptions().locale
-      : 'en-FR';
-    
-    const use12HourFormat = ['en-US', 'en-GB'].includes(locale);
-    
-    // Libellé jour
-    const dayLabel = new Date(match.date).toLocaleDateString(locale, {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-      timeZone,
-    }).toUpperCase();
+      const timeZone = isLocal
+        ? Intl.DateTimeFormat().resolvedOptions().timeZone
+        : 'Europe/Paris';
+
+     const locale = "fr-FR";
+
+
+      const use12HourFormat = ['en-US', 'en-GB'].includes(locale);
+
+      // Libellé du jour (ex : VENDREDI 15 NOVEMBRE)
+      const dayLabel = new Date(match.date).toLocaleDateString(locale, {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        timeZone,
+      }).toUpperCase();
     
     // Heure formatée selon locale
-    const hourLabel = new Date(match.date).toLocaleTimeString(locale, {
+   const hourLabel = match.hasValidTime
+  ? new Date(match.date).toLocaleTimeString(locale, {
       hour: '2-digit',
       minute: '2-digit',
       hour12: use12HourFormat,
       timeZone,
-    });
+    })
+  : "?????";
+
     
     // Drapeau
     const flagCode = isLocal
-      ? locale.split('-')[1]?.toLowerCase() || 'us'
+      ? locale.split('-')[1]?.toLowerCase() || 'fr'
       : 'fr';
     
       return (
@@ -264,11 +258,14 @@ export default function PhoenixSchedulePage() {
 
               {/* Time box */}
               <div className="flex flex-col items-center text-sm text-gray-700 mt-1">
-                <img
-                  src={`https://flagcdn.com/w40/${flagCode}.png`}
-                  alt={flagCode.toUpperCase()}
-                  className="w-5 h-4 mb-1"
-                />
+             <img
+  src="https://flagcdn.com/w40/fr.png"
+  alt="FR"
+  className="w-5 h-4 mb-1"
+/>
+
+
+
                 <div
                   className="flex items-center gap-1 cursor-pointer"
                   onClick={() =>
@@ -292,7 +289,7 @@ export default function PhoenixSchedulePage() {
     rel="noopener noreferrer"
     className="text-base font-semibold text-white tracking-wide hover:underline"
   >
-    GAME AVAILABLE HERE
+    MATCH DISPONIBLE ICI
   </a>
 </CardFooter>
 
@@ -317,27 +314,7 @@ export default function PhoenixSchedulePage() {
   <div className="fixed inset-0 bg-black/50" aria-hidden="true" />
   <div className="fixed inset-0 flex items-center justify-center p-4">
     <DialogPanel className="bg-white rounded-xl p-6 pt-12 pb-4 max-w-sm mx-auto shadow-xl relative">
-      {/* Language Switcher */}
-      <div className="absolute top-3 right-3 flex space-x-1">
-        <button
-          onClick={() => setLanguage("fr")}
-          className={`px-2 py-1 rounded-full text-sm border ${
-            language === "fr" ?  "bg-white border-gray-300" : "bg-gray-300 border-gray-500"
-          }`}
-          title="Passer en français"
-        >
-          🇫🇷
-        </button>
-        <button
-          onClick={() => setLanguage("en")}
-          className={`px-2 py-1 rounded-full text-sm border ${
-            language === "en" ? "bg-white border-gray-300" : "bg-gray-300 border-gray-500"
-          }`}
-          title="Switch to English"
-        >
-          🇺🇸
-        </button>
-      </div>
+   
 
       {/* Modal Title */}
       <DialogTitle className="text-xl font-bold mb-2 text-center">
