@@ -100,7 +100,7 @@ export default function PhoenixSchedulePage() {
   .map(match => ({
     ...match,
     opponent: (match.opponent),
-    link: match.link?.startsWith('http') ? match.link : `https://${match.link || '/'}`,
+    link: match.link?.startsWith('http') ? match.link : `https://${match.link || 'https://goconqs.com/sports/2018/8/17/live-video.aspx'}`,
   }));
 
 
