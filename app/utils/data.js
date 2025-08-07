@@ -7,7 +7,7 @@ export const matches = [
     "match.link": ""
   },
   {
-    "match.opponent": "Southwest Showcase",
+    "match.opponent": "Southwest SC",
     "dayLabel": "10/11/2025",
     "hourLabel": "",
     "match.opponentLogo": "/2.webp",
