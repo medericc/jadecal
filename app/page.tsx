@@ -102,6 +102,7 @@ const [showLocalTimes, setShowLocalTimes] = useState<{ [key: string]: boolean }>
   });
   return initial;
 });
+const [isNoLinkModalOpen, setIsNoLinkModalOpen] = useState(false);
 
  useEffect(() => {
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -298,17 +299,28 @@ const [showLocalTimes, setShowLocalTimes] = useState<{ [key: string]: boolean }>
                   </div>
                 </CardContent>
 
-                <CardFooter className="bg-gradient-to-r from-blue-700 to-blue-600 p-0">
-                  <a
-                    href={match.link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-full text-center py-3 text-white font-bold text-lg hover:bg-blue-700/90 transition-colors flex items-center justify-center gap-2"
-                  >
-                    <ExternalLink className="w-5 h-5" />
-                    REGARDER LE MATCH
-                  </a>
-                </CardFooter>
+               <CardFooter className="bg-gradient-to-r from-blue-700 to-blue-600 p-0">
+  {match.link && !match.link.includes("youtube.com") ? (
+    <a
+      href={match.link}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="w-full text-center py-3 text-white font-bold text-lg hover:bg-blue-700/90 transition-colors flex items-center justify-center gap-2"
+    >
+      <ExternalLink className="w-5 h-5" />
+      REGARDER LE MATCH
+    </a>
+  ) : (
+    <button
+      onClick={() => setIsNoLinkModalOpen(true)}
+      className="w-full text-center py-3 text-white font-bold text-lg hover:bg-blue-700/90 transition-colors flex items-center justify-center gap-2"
+    >
+      <ExternalLink className="w-5 h-5" />
+      REGARDER LE MATCH
+    </button>
+  )}
+</CardFooter>
+
               </Card>
             </div>
           );
@@ -392,6 +404,28 @@ const [showLocalTimes, setShowLocalTimes] = useState<{ [key: string]: boolean }>
           </DialogPanel>
         </div>
       </Dialog>
+
+      {/* Modale spéciale "pas de lien" */}
+<Dialog open={isNoLinkModalOpen} onClose={() => setIsNoLinkModalOpen(false)} className="relative z-50">
+  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" aria-hidden="true" />
+  <div className="fixed inset-0 flex items-center justify-center p-4">
+    <DialogPanel className="bg-white rounded-2xl p-6 max-w-sm mx-auto shadow-2xl border border-blue-200">
+      <DialogTitle className="text-xl font-bold text-blue-900 mb-3 text-center">
+        Inès s’échauffe en dehors des projecteurs ✨
+      </DialogTitle>
+      <p className="text-blue-700 text-center mb-6 text-sm">
+        Ce match n’a pas encore de lien vidéo disponible. Reviens un peu plus tard, la diffusion sera ajoutée dès qu’elle sera prête !
+      </p>
+      <button
+        onClick={() => setIsNoLinkModalOpen(false)}
+        className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-xl font-semibold transition-colors"
+      >
+        Fermer
+      </button>
+    </DialogPanel>
+  </div>
+</Dialog>
+
     </div>
   );
 }
