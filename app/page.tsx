@@ -46,9 +46,10 @@ const translations = {
   }
 };
 
+
 const parsed = rawMatches.map((match, index) => {
   const [month, day, year] = match.dayLabel.split('/');
-  const hourString = match.hourLabel || match["match.link"];
+  const hourString = match.hourLabel;
   let hour = NaN;
   let minute = NaN;
 
@@ -56,17 +57,24 @@ const parsed = rawMatches.map((match, index) => {
     [hour, minute] = hourString.split(/[:hH]/).map(Number);
   }
 
-  const date = new Date(
-    Number(year),
-    Number(month) - 1,
-    Number(day),
-    isNaN(hour) ? 0 : hour,
-    isNaN(minute) ? 0 : minute
-  );
+  // Création du datetime en Central Time
+  const dtET = DateTime.fromObject(
+    {
+      year: Number(year),
+      month: Number(month),
+      day: Number(day),
+      hour: isNaN(hour) ? 0 : hour,
+      minute: isNaN(minute) ? 0 : minute,
+    },
+   { zone: "America/New_York" })
+  ;
+
+  // Conversion en Europe/Paris (heure française par défaut)
+  const dtParis = dtET.setZone("Europe/Paris");
 
   return {
     id: `${index}-${match["match.opponent"]}`,
-    date,
+    date: dtParis.toJSDate(),
     opponent: match["match.opponent"],
     opponentLogo: `${match["match.opponentLogo"]}`,
     link: match["match.link"]?.startsWith('http')
@@ -81,12 +89,32 @@ const parsed = rawMatches.map((match, index) => {
 export default function PhoenixSchedulePage() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showLocalTimes, setShowLocalTimes] = useState<{ [key: string]: boolean }>({});
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showGoogleInstructions, setShowGoogleInstructions] = useState(false);
   const [showiOSInstructions, setShowiOSInstructions] = useState(false);
+  const [userZone, setUserZone] = useState("Europe/Paris");
+  const [userCountryCode, setUserCountryCode] = useState("fr");
+const [showLocalTimes, setShowLocalTimes] = useState<{ [key: string]: boolean }>(() => {
+  const initial: { [key: string]: boolean } = {};
+  // Par défaut, on affiche les heures en local (pas en France)
+  parsed.forEach(match => {
+    initial[match.id] = true;
+  });
+  return initial;
+});
 
-  useEffect(() => {
+ useEffect(() => {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    setUserZone(tz);
+
+    // petite détection du pays via le fuseau horaire
+    let country = "fr";
+    if (tz.startsWith("America")) country = "us";
+    else if (tz.startsWith("Europe/")) country = "fr";
+    else if (tz.startsWith("Asia")) country = "jp";
+    setUserCountryCode(country);
+  }, []); 
+ useEffect(() => {
     const now = new Date();
     const nowMinus5h = new Date(now.getTime() - 5 * 60 * 60 * 1000);
 
@@ -165,11 +193,11 @@ export default function PhoenixSchedulePage() {
   }
 
   const t = translations.fr;
-
+  
   return (
     <div className="mx-auto pb-20">
       {/* En-tête stylisé */}
-      <div className="text-center mb-8">
+        <div className="text-center mb-8">
         <div className="inline-flex items-center gap-3 bg-white/80 backdrop-blur-sm rounded-2xl px-6 py-4 shadow-lg border border-blue-200">
           <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-blue-400 rounded-full flex items-center justify-center">
             <span className="text-white font-bold text-lg">RI</span>
@@ -183,7 +211,7 @@ export default function PhoenixSchedulePage() {
         </div>
       </div>
 
-      {/* Liste des matchs */}
+       {/* Liste des matchs */}
       <div className="
       
        grid 
@@ -193,8 +221,8 @@ export default function PhoenixSchedulePage() {
     ">
         {matches.map((match) => {
           const isLocal = showLocalTimes[match.id];
-          const timeZone = isLocal ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'Europe/Paris';
-          const locale = "fr-FR";
+        const timeZone = userZone;
+  const locale = "fr-FR";
           const use12HourFormat = ['en-US', 'en-GB'].includes(locale);
 
           const dayLabel = new Date(match.date).toLocaleDateString(locale, {
@@ -212,9 +240,10 @@ export default function PhoenixSchedulePage() {
                 timeZone,
               })
             : "?????";
+ const flagCode = isLocal ? userCountryCode : "fr";
 
           return (
-            <div key={match.id} className="group">
+              <div key={match.id} className="group">
               <Card className="bg-white/90 backdrop-blur-sm border-2 border-blue-200/50 shadow-xl hover:shadow-2xl transition-all duration-300 rounded-2xl overflow-hidden hover:border-blue-300">
                 <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-500 text-white p-4 text-center">
                   <p className="text-lg font-bold tracking-wider drop-shadow-sm">
@@ -241,15 +270,16 @@ export default function PhoenixSchedulePage() {
                     </div>
 
                     {/* Heure */}
-                    <div className="flex flex-col items-center ml-4">
-                      <div className="flex items-center gap-2 mb-1">
-                        <img
-                          src={`https://flagcdn.com/w40/${isLocal ? locale.split('-')[1]?.toLowerCase() || 'fr' : 'fr'}.png`}
-                          alt="Flag"
-                          className="w-6 h-4 rounded"
-                        />
-                      </div>
-                      <div
+                    {/* Heure */}
+<div className="flex flex-col items-center ml-4">
+  <div className="flex items-center gap-2 mb-1">
+    <img
+      src={`https://flagcdn.com/w40/${userCountryCode}.png`}
+      alt="Flag"
+      className="w-6 h-4 rounded"
+    />
+  </div>
+    <div
                         className="flex items-center gap-2 bg-blue-50 px-3 py-2 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors border border-blue-200"
                         onClick={() => setShowLocalTimes(prev => ({
                           ...prev,
@@ -257,12 +287,14 @@ export default function PhoenixSchedulePage() {
                         }))}
                         title="Cliquez pour changer le fuseau horaire"
                       >
-                        <Clock className="w-4 h-4 text-blue-600" />
+                        <Clock className="w-4 h-4 text-blue-800" />
                         <span className="font-bold text-blue-800 text-sm">
                           {hourLabel}
                         </span>
-                      </div>
-                    </div>
+  </div>
+</div>
+
+
                   </div>
                 </CardContent>
 
