@@ -17,11 +17,11 @@ export const metadata = {
   openGraph: {
     title: "Calendrier d'Inès - Rhode Island",
     description: "Le calendrier des matchs de Inès.",
-    url: "https://ines-calendrier.vercel.app/",
+    url: "https://ines-agenda.vercel.app/",
     siteName: "Inès Debroise Schedule",
     images: [
       {
-        url: "https://ines-calendrier.vercel.app/preview.jpg",
+        url: "https://ines-agenda.vercel.app/preview.jpg",
         width: 1200,
         height: 630,
         alt: "Calendrier d'Inès - Rhode Island",
@@ -33,7 +33,7 @@ export const metadata = {
     card: "summary_large_image",
     title: "Calendrier d'Inès - Rhode Island",
     description: "Le calendrier des matchs d'Inès.",
-    images: ["https://ines-calendrier.vercel.app/preview.jpg"],
+    images: ["https://ines-agenda.vercel.app/preview.jpg"],
   },
 };
 
