@@ -35,7 +35,7 @@ const translations = {
     ],
     iosInstructions: [
       "✅ Le fichier a été téléchargé !",
-      "Si pas déjà importer :",
+      "Si pas déjà importé :",
       "1. Ouvrez l'application Fichiers",
       "2. Rendez-vous dans le dossier Téléchargements",
       "3. Appuyez sur le fichier ines_2526.ics",
@@ -45,7 +45,6 @@ const translations = {
     close: "Fermer",
   }
 };
-
 
 const parsed = rawMatches.map((match, index) => {
   const [month, day, year] = match.dayLabel.split('/');
@@ -57,7 +56,7 @@ const parsed = rawMatches.map((match, index) => {
     [hour, minute] = hourString.split(/[:hH]/).map(Number);
   }
 
-  // Création du datetime en Central Time
+  // Création du datetime en Eastern Time
   const dtET = DateTime.fromObject(
     {
       year: Number(year),
@@ -66,10 +65,10 @@ const parsed = rawMatches.map((match, index) => {
       hour: isNaN(hour) ? 0 : hour,
       minute: isNaN(minute) ? 0 : minute,
     },
-   { zone: "America/New_York" })
-  ;
+    { zone: "America/New_York" }
+  );
 
-  // Conversion en Europe/Paris (heure française par défaut)
+  // Conversion en Europe/Paris (heure FR par défaut)
   const dtParis = dtET.setZone("Europe/Paris");
 
   return {
@@ -94,28 +93,28 @@ export default function PhoenixSchedulePage() {
   const [showiOSInstructions, setShowiOSInstructions] = useState(false);
   const [userZone, setUserZone] = useState("Europe/Paris");
   const [userCountryCode, setUserCountryCode] = useState("fr");
-const [showLocalTimes, setShowLocalTimes] = useState<{ [key: string]: boolean }>(() => {
-  const initial: { [key: string]: boolean } = {};
-  // Par défaut, on affiche les heures en local (pas en France)
-  parsed.forEach(match => {
-    initial[match.id] = true;
+  const [showLocalTimes, setShowLocalTimes] = useState<{ [key: string]: boolean }>(() => {
+    const initial: { [key: string]: boolean } = {};
+    parsed.forEach(match => { initial[match.id] = true; });
+    return initial;
   });
-  return initial;
-});
-const [isNoLinkModalOpen, setIsNoLinkModalOpen] = useState(false);
+  const [isNoLinkModalOpen, setIsNoLinkModalOpen] = useState(false);
 
- useEffect(() => {
+  // 🔹 Détection automatique du fuseau horaire et du pays
+  useEffect(() => {
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
     setUserZone(tz);
 
-    // petite détection du pays via le fuseau horaire
+    // Détection du pays selon la timezone
     let country = "fr";
     if (tz.startsWith("America")) country = "us";
     else if (tz.startsWith("Europe/")) country = "fr";
     else if (tz.startsWith("Asia")) country = "jp";
     setUserCountryCode(country);
-  }, []); 
- useEffect(() => {
+  }, []);
+
+  // 🔹 Filtrage des matchs à venir
+  useEffect(() => {
     const now = new Date();
     const nowMinus5h = new Date(now.getTime() - 5 * 60 * 60 * 1000);
 
@@ -123,14 +122,16 @@ const [isNoLinkModalOpen, setIsNoLinkModalOpen] = useState(false);
       .filter(match => match.date > nowMinus5h)
       .map(match => ({
         ...match,
-        opponent: match.opponent,
-        link: match.link?.startsWith('http') ? match.link : `https://${match.link || 'youtube.com'}`,
+        link: match.link?.startsWith('http')
+          ? match.link
+          : `https://${match.link || 'youtube.com'}`
       }));
 
     setMatches(filtered);
     setLoading(false);
   }, []);
 
+  // 🔹 Génération du fichier .ics
   const generateICS = () => {
     const events = matches.map((match) => {
       const dt = DateTime.fromJSDate(match.date).setZone("Europe/Paris");
@@ -150,7 +151,7 @@ const [isNoLinkModalOpen, setIsNoLinkModalOpen] = useState(false);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'Inès_2526.ics';
+      a.download = 'ines_2526.ics';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -194,11 +195,11 @@ const [isNoLinkModalOpen, setIsNoLinkModalOpen] = useState(false);
   }
 
   const t = translations.fr;
-  
+
   return (
     <div className="mx-auto pb-20">
       {/* En-tête stylisé */}
-        <div className="text-center mb-8">
+      <div className="text-center mb-8">
         <div className="inline-flex items-center gap-3 bg-white/80 backdrop-blur-sm rounded-2xl px-6 py-4 shadow-lg border border-blue-200">
           <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-blue-400 rounded-full flex items-center justify-center">
             <span className="text-white font-bold text-lg">RI</span>
@@ -212,18 +213,12 @@ const [isNoLinkModalOpen, setIsNoLinkModalOpen] = useState(false);
         </div>
       </div>
 
-       {/* Liste des matchs */}
-      <div className="
-      
-       grid 
-    gap-6
-    grid-cols-[repeat(auto-fit,minmax(280px,1fr))]
-    p-4
-    ">
+      {/* Liste des matchs */}
+      <div className="grid gap-6 grid-cols-[repeat(auto-fit,minmax(280px,1fr))] p-4">
         {matches.map((match) => {
           const isLocal = showLocalTimes[match.id];
-        const timeZone = userZone;
-  const locale = "fr-FR";
+          const timeZone = isLocal ? userZone : "Europe/Paris";
+          const locale = "fr-FR";
           const use12HourFormat = ['en-US', 'en-GB'].includes(locale);
 
           const dayLabel = new Date(match.date).toLocaleDateString(locale, {
@@ -241,17 +236,16 @@ const [isNoLinkModalOpen, setIsNoLinkModalOpen] = useState(false);
                 timeZone,
               })
             : "?????";
- const flagCode = isLocal ? userCountryCode : "fr";
+
+          const flagCode = isLocal ? userCountryCode : "fr";
 
           return (
-              <div key={match.id} className="group">
+            <div key={match.id} className="group">
               <Card className="bg-white/90 backdrop-blur-sm border-2 border-blue-200/50 shadow-xl hover:shadow-2xl transition-all duration-300 rounded-2xl overflow-hidden hover:border-blue-300">
                 <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-500 text-white p-4 text-center">
-                  <p className="text-lg font-bold tracking-wider drop-shadow-sm">
-                    {dayLabel}
-                  </p>
+                  <p className="text-lg font-bold tracking-wider drop-shadow-sm">{dayLabel}</p>
                 </CardHeader>
-                
+
                 <CardContent className="p-5">
                   <div className="flex items-center justify-between">
                     {/* Équipe adverse */}
@@ -270,57 +264,53 @@ const [isNoLinkModalOpen, setIsNoLinkModalOpen] = useState(false);
                       </div>
                     </div>
 
-                    {/* Heure */}
-                    {/* Heure */}
-<div className="flex flex-col items-center ml-4">
-  <div className="flex items-center gap-2 mb-1">
-    <img
-      src={`https://flagcdn.com/w40/${userCountryCode}.png`}
-      alt="Flag"
-      className="w-6 h-4 rounded"
-    />
-  </div>
-    <div
+                    {/* Heure + drapeau dynamique */}
+                    <div className="flex flex-col items-center ml-4">
+                      <div className="flex items-center gap-2 mb-1">
+                        <img
+                          src={`https://flagcdn.com/w40/${flagCode}.png`}
+                          alt="Flag"
+                          className="w-6 h-4 rounded"
+                        />
+                      </div>
+                      <div
                         className="flex items-center gap-2 bg-blue-50 px-3 py-2 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors border border-blue-200"
-                        onClick={() => setShowLocalTimes(prev => ({
-                          ...prev,
-                          [match.id]: !prev[match.id],
-                        }))}
+                        onClick={() =>
+                          setShowLocalTimes((prev) => ({
+                            ...prev,
+                            [match.id]: !prev[match.id],
+                          }))
+                        }
                         title="Cliquez pour changer le fuseau horaire"
                       >
                         <Clock className="w-4 h-4 text-blue-800" />
-                        <span className="font-bold text-blue-800 text-sm">
-                          {hourLabel}
-                        </span>
-  </div>
-</div>
-
-
+                        <span className="font-bold text-blue-800 text-sm">{hourLabel}</span>
+                      </div>
+                    </div>
                   </div>
                 </CardContent>
 
-               <CardFooter className="bg-gradient-to-r from-blue-700 to-blue-600 p-0">
-  {match.link && !match.link.includes("youtube.com") ? (
-    <a
-      href={match.link}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="w-full text-center py-3 text-white font-bold text-lg hover:bg-blue-700/90 transition-colors flex items-center justify-center gap-2"
-    >
-      <ExternalLink className="w-5 h-5" />
-      REGARDER LE MATCH
-    </a>
-  ) : (
-    <button
-      onClick={() => setIsNoLinkModalOpen(true)}
-      className="w-full text-center py-3 text-white font-bold text-lg hover:bg-blue-700/90 transition-colors flex items-center justify-center gap-2"
-    >
-      <ExternalLink className="w-5 h-5" />
-      REGARDER LE MATCH
-    </button>
-  )}
-</CardFooter>
-
+                <CardFooter className="bg-gradient-to-r from-blue-700 to-blue-600 p-0">
+                  {match.link && !match.link.includes("youtube.com") ? (
+                    <a
+                      href={match.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full text-center py-3 text-white font-bold text-lg hover:bg-blue-700/90 transition-colors flex items-center justify-center gap-2"
+                    >
+                      <ExternalLink className="w-5 h-5" />
+                      REGARDER LE MATCH
+                    </a>
+                  ) : (
+                    <button
+                      onClick={() => setIsNoLinkModalOpen(true)}
+                      className="w-full text-center py-3 text-white font-bold text-lg hover:bg-blue-700/90 transition-colors flex items-center justify-center gap-2"
+                    >
+                      <ExternalLink className="w-5 h-5" />
+                      REGARDER LE MATCH
+                    </button>
+                  )}
+                </CardFooter>
               </Card>
             </div>
           );
